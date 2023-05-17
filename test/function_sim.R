@@ -38,7 +38,43 @@ fix.prob <- function(x1,x2,a,Ne){
 	return(p)
 }
 
-# Simulate evolution
+# Simulate a single lineage and write phenotype thru time
+# Parameters: mutational parameters (vector of length 8), optimal phenotype (vector of length 2), SDs of fitness functions (vector of length 2), Ne, time of simulation
+# a=c(0,0) for neutral evolution, opt!=c(0,0) for directional selection
+sim <- function(par,opt,a,Ne,T){
+	U1=par[1];sig1=par[2];U2=par[3];sig2=par[4];Up=par[5];r=par[6];siga=par[7];sigb=par[8]
+	sig.np=c(sig1,sig2)
+	mp=rbind(c(siga^2,r*siga*sigb),c(r*siga*sigb,sigb^2))
+
+	phe=matrix(0,nrow=2,ncol=(T+1))
+	for(t in 2:(T+1)){
+		phe[,t]=phe[,(t-1)]
+		nmut=rpois(1,lambda=(U1+U2+Up)) # Total number of mutations that would occur in this time step
+		if(nmut>=1){
+			type=sample(1:3,nmut,prob=c(U1,U2,Up)/(U1+U2+Up),replace=TRUE) # Type of each mutation
+			for(i in 1:nmut){
+				phe_mutant=phe[,t]
+				if(type[i]<3){ # The mutation is not pleiotropic
+					effect=rnorm(1,mean=0,sd=sig.np[type[i]])
+					phe_mutant[type[i]]=phe_mutant[type[i]]+effect # Calculate mutant phenotype
+				}else{ # The mutation is pleiotropic
+					effect=rmvnorm(1,sigma=mp)
+					phe_mutant=phe_mutant+as.numeric(effect) # Calculate mutant phenotype
+				}
+				fp=fix.prob(phe[,t]-opt,phe_mutant-opt,a,Ne)
+				if.fix=rbinom(n=1,size=1,prob=fp)
+				if(if.fix==1){
+					phe[,t]=phe_mutant # If the mutation is fixed, add its effect onto the population mean before the next mutation is examined
+				}
+			}
+		}
+	}
+	return(phe)
+}
+
+# Unused versions
+
+# Simulate evolution (many replicate lineages at once)
 # Parameters: mutational parameters (vector of length 8), optimal phenotype (vector of length 2), SDs of fitness functions (vector of length 2), Ne, number of replicate lineages, time of simulation
 # a=c(0,0) for neutral evolution, opt!=c(0,0) for directional selection
 sim <- function(par,opt,a,Ne,Nrep,T){
@@ -109,62 +145,3 @@ t.adapt <- function(dm,opt,a,Ne){
 	}
 	return(tmin)
 }
-
-# Test run
-# Use parameter sets that give clear predictions
-# Parameters used for all tests
-Ne=1e2
-Nrep=100
-T=1000
-
-# Parameter set 1: no pleiotropy (Up=0), stabilizing selection
-par=c(1,0.1,1,0.1,0,0,0.1,0.1)
-opt=c(0,0)
-a=c(1,1)
-out1=sim(par,opt,a,Ne,Nrep,T)
-var(out1[[1]][,1]) # Check variance
-var(out1[[1]][,1])/((par[1]*(par[2]^2)+par[5]*(par[7]^2))*T) # Check ratio of variance and expected variance
-
-# Parameter set 2: strong pleiotropy (U1=U2=0, Up>0, r=0), stabilizing selection
-par=c(0,0.1,0,0.1,1,0,0.1,0.1)
-opt=c(0,0)
-a=c(1,1)
-out2=sim(par,opt,a,Ne,Nrep,T)
-var(out2[[1]][,1]) # Check variance
-var(out2[[1]][,1])/((par[1]*(par[2]^2)+par[5]*(par[7]^2))*T) # Check ratio of variance and expected variance
-
-# Parameter set 3: no pleiotropy (Up=0), trait 2 under stabilizing selection
-par=c(1,0.1,1,0.1,0,0,0.1,0.1)
-opt=c(0,0)
-a=c(0,0.1) # Set strong stabilizing selection on trait 2 to make effect of constraint easy to see
-out3=sim(par,opt,a,Ne,Nrep,T)
-var(out3[[1]][,1]) # Check variance
-var(out3[[1]][,1])/((par[1]*(par[2]^2)+par[5]*(par[7]^2))*T) # Check ratio of variance and expected variance
-
-# Parameter set 4: strong pleiotropy (U1=U2=0, Up>0, r=0), trait 2 under stabilizing selection
-par=c(0,0.1,0,0.1,1,0,0.1,0.1)
-opt=c(0,0)
-a=c(0,0.1) # Set strong stabilizing selection on trait 2 to make effect of constraint easy to see
-out4=sim(par,opt,a,Ne,Nrep,T)
-var(out4[[1]][,1]) # Check variance
-var(out4[[1]][,1])/((par[1]*(par[2]^2)+par[5]*(par[7]^2))*T) # Check ratio of variance and expected variance
-
-# Parameter set 5: no pleiotropy, univariate directional selection
-par=c(1,0.1,1,0.1,0,0,0.1,0.1)
-opt=c(2,0) # Trait 1 under directional selection
-a=c(0.1,0.01) # Set strong stabilizing selection on trait 2 to make effect of constraint easy to see
-Ne=1e2
-Nrep=100
-T=1000
-out5=sim(par,opt,a,Ne,Nrep,T)
-mean(out5[[1]][,1]) # Check end-point mean phenotype
-t.adapt(out5[[2]],opt,a,Ne) # Check time taken to adapt
-
-# Parameter set 6: strong pleiotropy, univariate directional selection
-par=c(0,0.1,0,0.1,1,0,0.1,0.1)
-opt=c(2,0) # Trait 1 under directional selection
-a=c(0.1,0.01) # Set strong stabilizing selection on trait 2 to make effect of constraint easy to see
-out6=sim(par,opt,a,Ne,Nrep,T)
-mean(out6[[1]][,1]) # Check end-point mean phenotype
-t.adapt(out6[[2]],opt,a,Ne) # Check time taken to adapt
-
