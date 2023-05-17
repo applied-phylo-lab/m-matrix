@@ -39,76 +39,38 @@ fix.prob <- function(x1,x2,a,Ne){
 	return(p)
 }
 
-# Simulate evolution
-# Parameters: mutational parameters (vector of length 8), optimal phenotype (vector of length 2), SDs of fitness functions (vector of length 2), Ne, number of replicate lineages, time of simulation
+# Simulate a single lineage and write phenotype thru time
+# Parameters: mutational parameters (vector of length 8), optimal phenotype (vector of length 2), SDs of fitness functions (vector of length 2), Ne, time of simulation
 # a=c(0,0) for neutral evolution, opt!=c(0,0) for directional selection
-sim <- function(par,opt,a,Ne,Nrep,T){
-	# Read and interpret the mutational parameters
+sim <- function(par,opt,a,Ne,T){
 	U1=par[1];sig1=par[2];U2=par[3];sig2=par[4];Up=par[5];r=par[6];siga=par[7];sigb=par[8]
 	sig.np=c(sig1,sig2)
 	mp=rbind(c(siga^2,r*siga*sigb),c(r*siga*sigb,sigb^2))
 
-	phe.end=matrix(0,nrow=Nrep,ncol=2) # End-point phenotypes of all replicate lineages
-	phe.all=list() # All phenotypes through time
-	mean.all=matrix(0,nrow=2,ncol=(T+1)) # Mean phenotype through time
-	var.all=matrix(0,nrow=2,ncol=(T+1)) # Variance through time
-	for(n in 1:Nrep){
-		phe=matrix(0,nrow=2,ncol=(T+1)) # Phenotypes through time for this replicate lineage
-		for(t in 2:(T+1)){
-			phe[,t]=phe[,(t-1)]
-			nmut=rpois(1,lambda=(U1+U2+Up)) # Total number of mutations that would occur in this time step
-			if(nmut>=1){
-				type=sample(1:3,nmut,prob=c(U1,U2,Up)/(U1+U2+Up),replace=TRUE) # Type of each mutation
-				for(i in 1:nmut){
-					phe_mutant=phe[,t]
-					if(type[i]<3){ # The mutation is not pleiotropic
-						effect=rnorm(1,mean=0,sd=sig.np[type[i]])
-						phe_mutant[type[i]]=phe_mutant[type[i]]+effect # Calculate mutant phenotype
-					}else{ # The mutation is pleiotropic
-						effect=rmvnorm(1,sigma=mp)
-						phe_mutant=phe_mutant+as.numeric(effect) # Calculate mutant phenotype
-					}
-					fp=fix.prob(phe[,t]-opt,phe_mutant-opt,a,Ne)
-					if.fix=rbinom(n=1,size=1,prob=fp)
-					if(if.fix==1){
-						phe[,t]=phe_mutant # If the mutation is fixed, add its effect onto the population mean before the next mutation is examined
-					}
+	phe=matrix(0,nrow=2,ncol=(T+1))
+	for(t in 2:(T+1)){
+		phe[,t]=phe[,(t-1)]
+		nmut=rpois(1,lambda=(U1+U2+Up)) # Total number of mutations that would occur in this time step
+		if(nmut>=1){
+			type=sample(1:3,nmut,prob=c(U1,U2,Up)/(U1+U2+Up),replace=TRUE) # Type of each mutation
+			for(i in 1:nmut){
+				phe_mutant=phe[,t]
+				if(type[i]<3){ # The mutation is not pleiotropic
+					effect=rnorm(1,mean=0,sd=sig.np[type[i]])
+					phe_mutant[type[i]]=phe_mutant[type[i]]+effect # Calculate mutant phenotype
+				}else{ # The mutation is pleiotropic
+					effect=rmvnorm(1,sigma=mp)
+					phe_mutant=phe_mutant+as.numeric(effect) # Calculate mutant phenotype
+				}
+				fp=fix.prob(phe[,t]-opt,phe_mutant-opt,a,Ne)
+				if.fix=rbinom(n=1,size=1,prob=fp)
+				if(if.fix==1){
+					phe[,t]=phe_mutant # If the mutation is fixed, add its effect onto the population mean before the next mutation is examined
 				}
 			}
 		}
-		phe.end[n,]=phe[,(T+1)]
-		phe.all[[n]]=phe
 	}
-	# Calculate mean and variance through time
-	for(t in 2:(T+1)){
-		d=matrix(0,nrow=Nrep,ncol=2)
-		for(n in 1:Nrep){
-			d[n,]=phe.all[[n]][,t]
-		}
-		mean.all[1,t]=mean(d[,1]);mean.all[2,t]=mean(d[,2])
-		var.all[1,t]=var(d[,1]);var.all[2,t]=var(d[,2])
-	}
-	# Put data matrices into a list
-	out=list(phe.end,mean.all,var.all)
-	names(out)=c("phe_end","mean.all","var.all") # Rename elements in the list
-	return(out)
-}
-
-# Calculate time taken before the optimum is reached
-# Input: mean phenotype through time (2x(T+1) matrix), variance through time (2x(T+1) matrix), optimum (vector of length 2), SDs of fitness functions (vector of length 2), number of replicate lineages
-t.adapt <- function(dm,opt,a,Ne){
-	tmin=0
-	if(a[1]!=0&a[2]!=0){
-		for(t in 2:(T+1)){
-			w=fitness(dm[,t]-opt,a)
-			s=1-w
-			if(s<(1/(2*Ne))){
-				tmin[1]=t
-				break
-			}
-		}
-	}
-	return(tmin)
+	return(phe)
 }
 
 # Alter Up, siga, and sigb such that mutational covariance is unchanged
@@ -180,67 +142,64 @@ if(par.default[6]!=0){
 	}
 }
 
-Ne=1e3
-Nrep=200
-T=1e4
+rownames(par.all)=1:nrow(par.all)
+write.table(par.all,file="par_all_zero_cor.txt",sep="\t")
 
-# Columns: mean of trait 1; mean of trait 2; variance of trait 1; variance of trait 2; covariance; correlation; time taken to adapt (applicable only if there is directional selection)
-out.stabilizing=matrix(0,nrow=nrow(par.all),ncol=6) # Scenario 1: Both traits under stabilizing selection
-#out.qn=matrix(0,nrow=nrow(par.all),ncol=6) # Scenario 2: One trait under stabilizing selection, the other is neutral
-out.dir=matrix(0,nrow=nrow(par.all),ncol=7) # Scenario 3: One trait is under stabilizing selection, the other is under directional selection
-#out.dir.biv1=matrix(0,nrow=nrow(par.all),ncol=7) # Scenario 4.1: Both traits are under stabilizing selection (selection aligned w/ mutational covariance)
-#out.dir.biv2=matrix(0,nrow=nrow(par.all),ncol=7) # Scenario 4.2: Both traits are under stabilizing selection (selection misaligned w/ mutational covariance)
+Ne=1e3
+
+# Univariate directional selection
+Nrep=100
+T=5e3
+opt=c(2,0)
+width=c(1,1)
+out.all=matrix(0,nrow=Nrep*nrow(par.all)*2,ncol=(T+1+10))
+no=rep(0,nrow(out.all))
+colnames(out.all)=c("U1","sig1","U2","sig2","Up","r","siga","sigb","rep","trait",0:T)
 for(c in 1:nrow(par.all)){
 	par=par.all[c,]
-	# Scenario 1: Both traits under stabilizing selection
-	sim.out=sim(par,c(0,0),c(1,1),Ne,Nrep,T)
-	out.stabilizing[c,1]=sim.out[[2]][1,(T+1)]
-	out.stabilizing[c,2]=sim.out[[2]][2,(T+1)]
-	out.stabilizing[c,3]=sim.out[[3]][1,(T+1)]
-	out.stabilizing[c,4]=sim.out[[3]][2,(T+1)]
-	out.stabilizing[c,5]=cor(sim.out[[1]][,1],sim.out[[1]][,2])*sqrt(sim.out[[3]][1,(T+1)]*sim.out[[3]][2,(T+1)])
-	out.stabilizing[c,6]=cor(sim.out[[1]][,1],sim.out[[1]][,2])
-
-	# Scenario 2
-	#sim.out=sim(par,c(0,0),c(1,0),Ne,Nrep,T)
-	#out.qn[c,1]=sim.out[[2]][1,(T+1)]
-	#out.qn[c,2]=sim.out[[2]][2,(T+1)]
-	#out.qn[c,3]=sim.out[[3]][1,(T+1)]
-	#out.qn[c,4]=sim.out[[3]][2,(T+1)]
-	#out.qn[c,5]=cor(sim.out[[1]][,1],sim.out[[1]][,2])*sqrt(sim.out[[3]][1,(T+1)]*sim.out[[3]][2,(T+1)])
-	#out.qn[c,6]=cor(sim.out[[1]][,1],sim.out[[1]][,2])
-
-	# Scenario 3
-	sim.out=sim(par,c(0,2),c(1,1),Ne,Nrep,T)
-	out.dir[c,1]=sim.out[[2]][1,(T+1)]
-	out.dir[c,2]=sim.out[[2]][2,(T+1)]
-	out.dir[c,3]=sim.out[[3]][1,(T+1)]
-	out.dir[c,4]=sim.out[[3]][2,(T+1)]
-	out.dir[c,5]=cor(sim.out[[1]][,1],sim.out[[1]][,2])*sqrt(sim.out[[3]][1,(T+1)]*sim.out[[3]][2,(T+1)])
-	out.dir[c,6]=cor(sim.out[[1]][,1],sim.out[[1]][,2])
-	out.dir[c,7]=t.adapt(sim.out[[2]],c(0,2),c(1,1),Ne)
-
-	# Scenario 4.1
-	#sim.out=sim(par,c(2,2),c(1,1),Ne,Nrep,T)
-	#out.dir.biv1[c,1]=sim.out[[2]][1,(T+1)]
-	#out.dir.biv1[c,2]=sim.out[[2]][2,(T+1)]
-	#out.dir.biv1[c,3]=sim.out[[3]][1,(T+1)]
-	#out.dir.biv1[c,4]=sim.out[[3]][2,(T+1)]
-	#out.dir.biv1[c,5]=cor(sim.out[[1]][,1],sim.out[[1]][,2])*sqrt(sim.out[[3]][1,(T+1)]*sim.out[[3]][2,(T+1)])
-	#out.dir.biv1[c,6]=cor(sim.out[[1]][,1],sim.out[[1]][,2])
-	#out.dir.biv1[c,7]=t.adapt(sim.out[[2]],c(2,2),c(1,1),Ne)
-	
-	# Scenario 4.2
-	#sim.out=sim(par,c(2,-2),c(1,1),Ne,Nrep,T)
-	#out.dir.biv2[c,1]=sim.out[[2]][1,(T+1)]
-	#out.dir.biv2[c,2]=sim.out[[2]][2,(T+1)]
-	#out.dir.biv2[c,3]=sim.out[[3]][1,(T+1)]
-	#out.dir.biv2[c,4]=sim.out[[3]][2,(T+1)]
-	#out.dir.biv2[c,5]=cor(sim.out[[1]][,1],sim.out[[1]][,2])*sqrt(sim.out[[3]][1,(T+1)]*sim.out[[3]][2,(T+1)])
-	#out.dir.biv2[c,6]=cor(sim.out[[1]][,1],sim.out[[1]][,2])
-	#out.dir.biv2[c,7]=t.adapt(sim.out[[2]],c(2,-2),c(1,1),Ne)
+	row.start=row=(c-1)*2*Nrep+1
+	row.end=row=c*2*Nrep
+	no[row.start:row.end]=c
+	for(i in row.start:row.end){
+		out.all[i,1:8]=par
+	}
+	for(n in 1:Nrep){
+		row=(c-1)*2*Nrep+2*n-1
+		out.all[row:(row+1),9]=n
+		out.all[row:(row+1),10]=c(1,2)
+		phe=sim(par,opt,width,Ne,T)
+		out.all[row:(row+1),11:(ncol(out.all))]=phe
+	}
 }
+out.all=data.frame(no,out.all)
+write.table(out.all,file="out_dir_zero_cor.txt",sep="\t")
 
-write.table(data.frame(par.all,out.stabilizing),file="sim_out_stabilizing_zero_cor.txt",sep="\t")
-write.table(data.frame(par.all,out.dir),file="sim_out_directional_zero_cor.txt",sep="\t")
+# Stabilizing selection
+Nrep=100
+T=5e4
+opt=c(0,0)
+width=c(5,5)
+out.all=matrix(0,nrow=Nrep*nrow(par.all)*2,ncol=(T+1+10))
+no=rep(0,nrow(out.all))
+colnames(out.all)=c("U1","sig1","U2","sig2","Up","r","siga","sigb","rep","trait",0:T)
+for(c in 1:nrow(par.all)){
+	par=par.all[c,]
+	row.start=row=(c-1)*2*Nrep+1
+	row.end=row=c*2*Nrep
+	no[row.start:row.end]=c
+	for(i in row.start:row.end){
+		out.all[i,1:8]=par
+	}
+	for(n in 1:Nrep){
+		row=(c-1)*2*Nrep+2*n-1
+		out.all[row:(row+1),9]=n
+		out.all[row:(row+1),10]=c(1,2)
+		phe=sim(par,opt,width,Ne,T)
+		out.all[row:(row+1),11:(ncol(out.all))]=phe
+	}
+}
+out.all=data.frame(no,out.all)
+out.end=data.frame(out.all[,1:11],out.all[,ncol(out.all)])
+write.table(out.all,file="out_stab_zero_cor.txt",sep="\t")
+write.table(out.end,file="out_stab_end_zero_cor.txt",sep="\t")
 
