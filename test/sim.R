@@ -110,7 +110,7 @@ par.convert.type2 <- function(par,c,v){
 	}
 }
 
-par.default=c(1,0.1,1,0.1,1,0.9,0.1,0.1) # Starting parameter set
+par.default=c(1,0.1,1,0.1,1,0.5,0.1,0.1) # Starting parameter set
 par.all=par.default # Data matrix to store all parameter sets
 
 # Conversion type 1
