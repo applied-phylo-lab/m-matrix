@@ -13,4 +13,7 @@ The following files are codes to simulate 2, 5, and 10 traits, respectively:
 "10_traits.txt".
 
 Files whose names contain "0pl", ... , "50pl" are output files of simulations with 0, ..., 50 pleiotropic loci, respectively.
+Information regarding structure of the data files is also available in the simulation codes.
+However, more detailed descriptions will also be added to this file soon.
+
 
