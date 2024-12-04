@@ -1,0 +1,143 @@
+// open this file using SLiMgui to start
+
+initialize(){
+    // Population size
+    defineConstant("N",1000);
+    
+    // Number of populations
+    defineConstant("npop",1);
+    
+    // Mutation rate    
+    defineConstant("u",1e-6); // Mutation rate per genomic element
+    initializeMutationRate(u);
+
+    // Constants for non-pleiotropic mutations
+    defineConstant("z1_mean",0); // Mean effect on trait 1
+    defineConstant("z1_var",1); // Variance of effect on trait 1
+    defineConstant("z2_mean",0); // Mean effect on trait 2
+    defineConstant("z2_var",1); // Variance of effect on trait 2 
+    
+    // Constants for pleiotropic mutations
+    defineConstant("pl_mean",c(0,0)); // Mean effectS
+    defineConstant("pl_var",c(1,1)); // Variances
+    defineConstant("pl_cov",0); // Effect size covariance
+    defineConstant("pl_sigma",matrix(c(pl_var[0],0,0,pl_var[1]),nrow=2)); // Covariance matrix for effects of pleiotropic mutations
+    
+    // Constants for selection
+    defineConstant("opt",c(0,0)); // Optimal phenotype
+    defineConstant("fitness_width",c(1,1)); // Width of fitness function
+    
+    // Set mutation types
+    initializeMutationType("m1",0.5,"n",0,0.5); // Mutations affecting trait 1 only
+    initializeMutationType("m2",0.5,"n",0,0.5); // Mutations affecting trait 2 only
+    initializeMutationType("m3",0.5,"n",0,0.5); // Pleiotropic mutations
+    // When a mutation is fixed, do not convert it to a substitution
+    m1.convertToSubstitution=F;m2.convertToSubstitution=F;m3.convertToSubstitution=F;
+    
+    initializeGenomicElementType("g1",m1,1); // Genes affecting trait 1 only
+    initializeGenomicElementType("g2",m2,1); // Genes affecting trait 2 only
+    initializeGenomicElementType("g3",m3,1); // Pleiotropic Genes
+    
+    // Number of each type of gene
+    defineConstant("n_gene_per_trait",50); // Number of genes affecting each trait
+    defineConstant("L3",50); // Number of pleiotropic genes
+    defineConstant("L1",n_gene_per_trait-L3); // Number of genes affecting trait 1 only
+    defineConstant("L2",n_gene_per_trait-L3); // Number of genes affecting trait 2 only
+    if(L3==0){
+        initializeGenomicElement(g1,0,L1-1);
+        initializeGenomicElement(g2,L1,L1+L2-1);
+    }else{
+        if(L3==n_gene_per_trait){
+            initializeGenomicElement(g3,0,L3-1);
+        }else{
+            initializeGenomicElement(g1,0,L1-1);
+            initializeGenomicElement(g2,L1,L1+L2-1);
+            initializeGenomicElement(g3,L1+L2,L1+L2+L3-1);
+        }
+    }
+    initializeRecombinationRate(0.5); // Free recombination between genes (relative location does not matter)
+}
+
+// Create populations
+1 late(){
+    //sim.addSubpop("p1", N);
+    for(i in 0:(npop-1)){
+        sim.addSubpop(i,N);
+    }
+    for(i in 0:(npop-1)){
+        for(j in 0:(npop-1)){
+            if(i != j){sim.subpopulations[i].setMigrationRates(j,0);} // Set all migration rates as zero such that each population is an independent lineage
+        }
+    }
+}
+
+// Callback (function) for sampling mutation effetcs (called every time a mutation is generated)
+mutation(m1){
+    effect=rnorm(1,mean=z1_mean,sd=z1_var^0.5); // Sample effect from a univariate normal distribution
+    mut.setValue("e1",effect);
+    effects=c(effect,0.0); // Effect on the unaffected trait is zero
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects,effects));
+    return T;
+}
+
+mutation(m2){
+    effect=rnorm(1,mean=0,sd=1);
+    mut.setValue("e2",effect);
+    effects=c(0.0,effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects,effects));
+    return T;
+}
+
+mutation(m3){
+    effects=rmvnorm(1,pl_mean,pl_sigma); // Sample effect from a multivariate normal distribution
+    mut.setValue("e1",effects[0]);
+    mut.setValue("e2",effects[1]);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+
+// Calculate phenotype given mutation effects
+late(){
+    for(ind in sim.subpopulations.individuals){ // go through individuals in the population
+        // Vectors containing all mutations of each type
+        muts1=ind.genomes.mutationsOfType(m1);
+        muts2=ind.genomes.mutationsOfType(m2);
+        muts3=ind.genomes.mutationsOfType(m3);
+        z11=size(muts1)?sum(muts1.getValue("e1")) else 0;
+        z22=size(muts2)?sum(muts2.getValue("e2")) else 0;
+        z31=size(muts3)?sum(muts3.getValue("e1")) else 0; 
+        z32=size(muts3)?sum(muts3.getValue("e2")) else 0;
+        z1=z11+z31;z2=z22+z32;
+        ind.setValue("z1",z1);
+        ind.setValue("z2",z2);
+        // Distance to optimum normalized by fitness function width
+        d1=(z1-opt[0])/fitness_width[0];
+        d2=(z2-opt[1])/fitness_width[1];
+        D=(d1^2+d2^2)^0.5; // Euclidean distance from optimum
+        ind.fitnessScaling=exp(-D^2/2); // Fitness
+    }
+}
+
+2*N late(){
+    sim.simulationFinished();
+    lines=NULL;
+    for(i in 0:(npop-1)){
+        inds=sim.subpopulations[i].individuals;
+        z1_pop_mean=mean(inds.getValue("z1"));
+        z2_pop_mean=mean(inds.getValue("z2"));
+        vg1=var(inds.getValue("z1"));
+        vg2=var(inds.getValue("z2"));
+        //catn("Population " + (i+1));
+        //catn("z1=" + z1_pop_mean);catn("z2=" + z2_pop_mean);
+        //catn("vg1=" + vg1);catn("vg2=" + vg2);
+        outLine=paste0(i+1,"\t",z1_pop_mean,"\t",vg1,"\n",i+1,"\t",z2_pop_mean,"\t",vg2,"\n");
+        lines=c(lines,outLine);
+    }
+    file=paste0(lines);
+    //cat(file);
+    filename=paste0("/Users/daohanji/Desktop/M_Matrix/SLiM/sim_out_2t_",L3,"pl.txt");
+    writeFile(filename,file);
+}
