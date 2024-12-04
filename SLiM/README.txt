@@ -1,7 +1,7 @@
 This folder contains codes of SLiM simulations and output data files.
 
 The 3 enclosed folders are for three types of scenarios respectively.
-"./stab": all traits are under stabilizing selection
+"./stabilizing": all traits are under stabilizing selection
 "./neutral": the focal trait is not under selection while other traits are under stabilizing selection.
 "./directional": the focal trait is under directional selection while other traits are under stabilizing selection.
 
