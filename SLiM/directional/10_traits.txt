@@ -1,0 +1,233 @@
+// open this file using SLiMgui to start
+
+initialize(){
+    initializeSLiMModelType("nonWF");
+    defineConstant("K",1000); // Carrying capacity
+    defineConstant("r_max",1); // Baseline per capita growth rate
+    defineConstant("time",10*K); // Simulation time
+    
+    // Initial population size
+    defineConstant("N0",K);
+    
+    // Number of populations
+    defineConstant("npop",50);
+    
+    // Mutation rate    
+    defineConstant("u",1e-6); // Mutation rate per genomic element
+    initializeMutationRate(u);
+    
+    // Constants characterizing mutational architecture
+    defineConstant("z_mean",rep(0,10)); // Mean mutational effect on each trait
+    defineConstant("z_var",diag(rep(1,10))); // Variance of mutationl effect on each trait (trait's robustness); zero covariances
+    
+    // Constants for selection
+    defineConstant("opt",c(20,rep(0,9))); // Optimal phenotype
+    defineConstant("fitness_width",c(10,rep(1,9))); // Width of fitness function (SD of Gaussian function)
+
+    // Mutation and genetic element types
+    initializeMutationType("m1",0.5,"f",0.0);m1.convertToSubstitution=F;initializeGenomicElementType("g1",m1,1);
+    initializeMutationType("m2",0.5,"f",0.0);m2.convertToSubstitution=F;initializeGenomicElementType("g2",m2,1);
+    initializeMutationType("m3",0.5,"f",0.0);m3.convertToSubstitution=F;initializeGenomicElementType("g3",m3,1);
+    initializeMutationType("m4",0.5,"f",0.0);m4.convertToSubstitution=F;initializeGenomicElementType("g4",m4,1);
+    initializeMutationType("m5",0.5,"f",0.0);m5.convertToSubstitution=F;initializeGenomicElementType("g5",m5,1);
+    initializeMutationType("m6",0.5,"f",0.0);m6.convertToSubstitution=F;initializeGenomicElementType("g6",m6,1);
+    initializeMutationType("m7",0.5,"f",0.0);m7.convertToSubstitution=F;initializeGenomicElementType("g7",m7,1);
+    initializeMutationType("m8",0.5,"f",0.0);m8.convertToSubstitution=F;initializeGenomicElementType("g8",m8,1);
+    initializeMutationType("m9",0.5,"f",0.0);m9.convertToSubstitution=F;initializeGenomicElementType("g9",m9,1);
+    initializeMutationType("m10",0.5,"f",0.0);m10.convertToSubstitution=F;initializeGenomicElementType("g10",m10,1);
+    initializeMutationType("m11",0.5,"f",0.0);m11.convertToSubstitution=F;initializeGenomicElementType("g11",m11,1);
+    
+    defineConstant("n_gene_per_trait",50); // Number of genes affecting each trait
+    defineConstant("L_upl",0);
+    defineConstant("L_npl",n_gene_per_trait-L_upl);
+    if(L_upl==n_gene_per_trait){
+        initializeGenomicElement(g11,0,n_gene_per_trait-1);
+    }else{
+        initializeGenomicElement(g1,0,L_npl-1);
+        initializeGenomicElement(g2,L_npl,2*L_npl-1);
+        initializeGenomicElement(g3,2*L_npl,3*L_npl-1);
+        initializeGenomicElement(g4,3*L_npl,4*L_npl-1);
+        initializeGenomicElement(g5,4*L_npl,5*L_npl-1);
+        initializeGenomicElement(g6,5*L_npl,6*L_npl-1);
+        initializeGenomicElement(g7,6*L_npl,7*L_npl-1);
+        initializeGenomicElement(g8,7*L_npl,8*L_npl-1);
+        initializeGenomicElement(g9,8*L_npl,9*L_npl-1);
+        initializeGenomicElement(g10,9*L_npl,10*L_npl-1);
+        if(L_upl>0){
+            initializeGenomicElement(g11,10*L_npl,10*L_npl+L_upl-1);
+        }
+    }
+    
+    initializeRecombinationRate(0.5); // Free recombination between genes (relative location does not matter)
+}
+
+reproduction(){
+    subpop.addCrossed(individual,subpop.sampleIndividuals(r_max));
+}
+
+// Create populations
+1 late(){
+    //sim.addSubpop("p1", N);
+    for(i in 0:(npop-1)){
+        sim.addSubpop(i,N0);
+    }
+}
+
+// Callback (function) for sampling mutation effetcs (called every time a mutation is generated)
+mutation(m1){
+    effect=rnorm(1,mean=z_mean[0],sd=z_var[0,0]^0.5);
+    effects=rep(0.0,10);effects[0]=effect;
+    mut.setValue("e1",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m2){
+    effect=rnorm(1,mean=z_mean[1],sd=z_var[1,1]^0.5);
+    effects=rep(0.0,10);effects[1]=effect;
+    mut.setValue("e2",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m3){
+    effect=rnorm(1,mean=z_mean[2],sd=z_var[2,2]^0.5);
+    effects=rep(0.0,10);effects[2]=effect;
+    mut.setValue("e3",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m4){
+    effect=rnorm(1,mean=z_mean[3],sd=z_var[3,3]^0.5);
+    effects=rep(0.0,10);effects[3]=effect;
+    mut.setValue("e4",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m5){
+    effect=rnorm(1,mean=z_mean[4],sd=z_var[4,4]^0.5);
+    effects=rep(0.0,10);effects[4]=effect;
+    mut.setValue("e5",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m6){
+    effect=rnorm(1,mean=z_mean[5],sd=z_var[5,5]^0.5);
+    effects=rep(0.0,10);effects[5]=effect;
+    mut.setValue("e6",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m7){
+    effect=rnorm(1,mean=z_mean[6],sd=z_var[6,6]^0.5);
+    effects=rep(0.0,10);effects[6]=effect;
+    mut.setValue("e7",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m8){
+    effect=rnorm(1,mean=z_mean[7],sd=z_var[7,7]^0.5);
+    effects=rep(0.0,10);effects[7]=effect;
+    mut.setValue("e8",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m9){
+    effect=rnorm(1,mean=z_mean[8],sd=z_var[8,8]^0.5);
+    effects=rep(0.0,10);effects[8]=effect;
+    mut.setValue("e9",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m10){
+    effect=rnorm(1,mean=z_mean[9],sd=z_var[9,9]^0.5);
+    effects=rep(0.0,10);effects[9]=effect;
+    mut.setValue("e10",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m11){
+    effects=rmvnorm(1,z_mean,z_var); // Sample effect from a multivariate normal distribution
+    mut.setValue("e1",effects[0]);
+    mut.setValue("e2",effects[1]);
+    mut.setValue("e3",effects[2]);
+    mut.setValue("e4",effects[3]);
+    mut.setValue("e5",effects[4]);
+    mut.setValue("e6",effects[5]);
+    mut.setValue("e7",effects[6]);
+    mut.setValue("e8",effects[7]);
+    mut.setValue("e9",effects[8]);
+    mut.setValue("e10",effects[9]);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+
+// Calculate phenotype given mutation effects
+2:time early(){
+   for(i in 0:(npop-1)){
+       inds=sim.subpopulations[i].individuals;
+       N=sim.subpopulations[i].individualCount;
+       for(ind in inds){ // go through individuals in the population
+           muts1=ind.genomes.mutationsOfType(m1);z1=size(muts1)?sum(muts1.getValue("e1")) else 0;
+           muts2=ind.genomes.mutationsOfType(m2);z2=size(muts2)?sum(muts2.getValue("e2")) else 0;
+           muts3=ind.genomes.mutationsOfType(m3);z3=size(muts3)?sum(muts3.getValue("e3")) else 0;
+           muts4=ind.genomes.mutationsOfType(m4);z4=size(muts4)?sum(muts4.getValue("e4")) else 0;
+           muts5=ind.genomes.mutationsOfType(m5);z5=size(muts5)?sum(muts5.getValue("e5")) else 0;
+           muts6=ind.genomes.mutationsOfType(m6);z6=size(muts6)?sum(muts6.getValue("e6")) else 0;
+           muts7=ind.genomes.mutationsOfType(m7);z7=size(muts7)?sum(muts7.getValue("e7")) else 0;
+           muts8=ind.genomes.mutationsOfType(m8);z8=size(muts8)?sum(muts8.getValue("e8")) else 0;
+           muts9=ind.genomes.mutationsOfType(m9);z9=size(muts9)?sum(muts9.getValue("e9")) else 0;
+           muts10=ind.genomes.mutationsOfType(m10);z10=size(muts10)?sum(muts10.getValue("e10")) else 0;
+       
+           muts11=ind.genomes.mutationsOfType(m11);
+           z1p=size(muts11)?sum(muts11.getValue("e1")) else 0;z1=z1+z1p;ind.setValue("z1",z1);d1=(z1-opt[0])/fitness_width[0];
+           z2p=size(muts11)?sum(muts11.getValue("e2")) else 0;z2=z2+z2p;ind.setValue("z2",z2);d2=(z2-opt[1])/fitness_width[1];
+           z3p=size(muts11)?sum(muts11.getValue("e3")) else 0;z3=z3+z3p;ind.setValue("z3",z3);d3=(z3-opt[2])/fitness_width[2];
+           z4p=size(muts11)?sum(muts11.getValue("e4")) else 0;z4=z4+z4p;ind.setValue("z4",z4);d4=(z4-opt[3])/fitness_width[3];
+           z5p=size(muts11)?sum(muts11.getValue("e5")) else 0;z5=z5+z5p;ind.setValue("z5",z5);d5=(z5-opt[4])/fitness_width[4];
+           z6p=size(muts11)?sum(muts11.getValue("e6")) else 0;z6=z6+z6p;ind.setValue("z6",z6);d6=(z6-opt[5])/fitness_width[5];
+           z7p=size(muts11)?sum(muts11.getValue("e7")) else 0;z7=z7+z7p;ind.setValue("z7",z7);d7=(z7-opt[6])/fitness_width[6];
+           z8p=size(muts11)?sum(muts11.getValue("e8")) else 0;z8=z8+z8p;ind.setValue("z8",z8);d8=(z8-opt[7])/fitness_width[7];
+           z9p=size(muts11)?sum(muts11.getValue("e9")) else 0;z9=z9+z9p;ind.setValue("z9",z9);d9=(z9-opt[8])/fitness_width[8];
+           z10p=size(muts11)?sum(muts11.getValue("e10")) else 0;z10=z10+z10p;ind.setValue("z10",z10);d10=(z10-opt[9])/fitness_width[9];
+       
+           D=(d1^2+d2^2+d3^2+d4^2+d5^2+d6^2+d7^2+d8^2+d9^2+d10^2)^0.5;
+           w=exp(-D^2/2);
+           ind.fitnessScaling=w*K/N;
+       }
+   }
+}
+
+time late(){
+    sim.simulationFinished();
+    lines=NULL;
+    for(n in 0:(npop-1)){
+        N=sim.subpopulations[n].individualCount;
+        //catn(N);
+        if(N>0){
+            inds=sim.subpopulations[n].individuals;
+            z_pop_mean=c(mean(inds.getValue("z1")),mean(inds.getValue("z2")),mean(inds.getValue("z3")),mean(inds.getValue("z4")),mean(inds.getValue("z5")),mean(inds.getValue("z6")),mean(inds.getValue("z7")),mean(inds.getValue("z8")),mean(inds.getValue("z9")),mean(inds.getValue("z10")));
+            vg=c(var(inds.getValue("z1")),var(inds.getValue("z2")),var(inds.getValue("z3")),var(inds.getValue("z4")),var(inds.getValue("z5")),var(inds.getValue("z6")),var(inds.getValue("z7")),var(inds.getValue("z8")),var(inds.getValue("z9")),var(inds.getValue("z10")));
+        }else{
+            z_pop_mean=rep(-1,10);
+            vg=rep(-1,10);
+        }
+        for(i in 1:10){
+        outLine=paste0(i,"\t",N,"\t",z_pop_mean[i-1],"\t",vg[i-1],"\n");
+            lines=c(lines,outLine);
+        }
+    }
+    file=paste0(lines);
+    //cat(file);
+    filename=paste0("/Users/rexjiang/Desktop/M_matrix/SLiM/nonWF/sim_out_10t_",L_upl,"pl.txt");
+    writeFile(filename,file);
+}
