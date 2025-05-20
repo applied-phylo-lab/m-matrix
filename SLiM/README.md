@@ -12,16 +12,24 @@ Simulations where a focal trait is under directional selection, whereas other tr
 # directional_nWF/
 Simulations where a focal trait is under directional selection, whereas other traits are under stabilizing selection. Non-Wright-Fisher populations are simulated.
 
+Each of the folders contains the following files, as explained below. See README files within each directory for descriptions of files specific to each of them.
 
-In each directory, there are the following sub-directories:
+# 2_traits.txt
+SLiM code for simulating 2 traits. 
 
-# 2_traits/
-Simulations with mutational architectures producing the same 2-dimensional M-matrix.
+# 5_traits.txt
+SLiM code for simulating 5 traits.
 
-# 5_traits/
-Simulations with mutational architectures producing the same 5-dimensional M-matrix.
+# 10_traits.txt
+SLiM code for simulating 10 traits.
 
-# 10_traits/
-Simulations with mutational architectures producing the same 10-dimensional M-matrix.
+# sim_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt
+Data files containing output at the end of the simulations.
+
+# sim_out_all_<number_of_traits>t_<number_of_pleiotropic_loci>.txt
+Data files containing simulation output over time.
+
+# sim_out_all_<number_of_traits>t_<number_of_pleiotropic_loci>_processed.txt
+Data files containing simulation output over time. The same as the above, but with top lines removed such that they are ready for making figures.
 
 
