@@ -1,0 +1,153 @@
+// open this file using SLiMgui to start
+
+initialize(){
+    initializeSLiMModelType("nonWF");
+    defineConstant("K",1000); // Carrying capacity
+    defineConstant("r_max",1); // Baseline per capita growth rate
+    defineConstant("time",10*K); // Simulation time
+    
+    // Initial population size
+    defineConstant("N0",K);
+    
+    // Number of populations
+    defineConstant("npop",50);
+    
+    // Mutation rate    
+    defineConstant("u",1e-6); // Mutation rate per genomic element
+    initializeMutationRate(u);
+    
+    // Constants characterizing mutational architecture
+    defineConstant("z_mean",rep(0,2)); // Mean mutational effect on each trait
+    defineConstant("z_var",diag(rep(1,2))); // Variance of mutationl effect on each trait (trait's robustness); zero covariances
+    
+    // Constants for selection
+    defineConstant("opt",c(20,0)); // Optimal phenotype
+    defineConstant("fitness_width",c(10,1)); // Width of fitness function (SD of Gaussian function)
+
+    // Mutation and genetic element types
+    initializeMutationType("m1",0.5,"f",0.0);m1.convertToSubstitution=F;initializeGenomicElementType("g1",m1,1);
+    initializeMutationType("m2",0.5,"f",0.0);m2.convertToSubstitution=F;initializeGenomicElementType("g2",m2,1);
+    initializeMutationType("m3",0.5,"f",0.0);m3.convertToSubstitution=F;initializeGenomicElementType("g3",m3,1);
+    
+    defineConstant("n_gene_per_trait",50); // Number of genes affecting each trait
+    defineConstant("L_upl",0);
+    defineConstant("L_npl",n_gene_per_trait-L_upl);
+    if(L_upl==n_gene_per_trait){
+        initializeGenomicElement(g3,0,n_gene_per_trait-1);
+    }else{
+        initializeGenomicElement(g1,0,L_npl-1);
+        initializeGenomicElement(g2,L_npl,2*L_npl-1);
+        if(L_upl>0){
+            initializeGenomicElement(g3,2*L_npl,3*L_npl+L_upl-1);
+        }
+    }
+    
+    initializeRecombinationRate(0.5); // Free recombination between genes (relative location does not matter)
+}
+
+reproduction(){
+    subpop.addCrossed(individual,subpop.sampleIndividuals(r_max));
+}
+
+// Create populations
+1 late(){
+    //sim.addSubpop("p1", N);
+    for(i in 0:(npop-1)){
+        sim.addSubpop(i,N0);
+    }
+}
+
+// Callback (function) for sampling mutation effetcs (called every time a mutation is generated)
+mutation(m1){
+    effect=rnorm(1,mean=z_mean[0],sd=z_var[0,0]^0.5);
+    effects=rep(0.0,2);effects[0]=effect;
+    mut.setValue("e1",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m2){
+    effect=rnorm(1,mean=z_mean[1],sd=z_var[1,1]^0.5);
+    effects=rep(0.0,2);effects[1]=effect;
+    mut.setValue("e2",effect);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+mutation(m3){
+    effects=rmvnorm(1,z_mean,z_var); // Sample effect from a multivariate normal distribution
+    mut.setValue("e1",effects[0]);
+    mut.setValue("e2",effects[1]);
+    old_effects=sim.getValue("all_effects");
+    sim.setValue("all_effects",rbind(old_effects, effects));
+    return T;
+}
+
+// Calculate phenotype given mutation effects
+2:time early(){
+   for(i in 0:(npop-1)){
+       inds=sim.subpopulations[i].individuals;
+       N=sim.subpopulations[i].individualCount;
+       for(ind in inds){ // go through individuals in the population
+           muts1=ind.genomes.mutationsOfType(m1);z1=size(muts1)?sum(muts1.getValue("e1")) else 0;
+           muts2=ind.genomes.mutationsOfType(m2);z2=size(muts2)?sum(muts2.getValue("e2")) else 0;
+       
+           muts3=ind.genomes.mutationsOfType(m3);
+           z1p=size(muts3)?sum(muts3.getValue("e1")) else 0;z1=z1+z1p;ind.setValue("z1",z1);d1=(z1-opt[0])/fitness_width[0];
+           z2p=size(muts3)?sum(muts3.getValue("e2")) else 0;z2=z2+z2p;ind.setValue("z2",z2);d2=(z2-opt[1])/fitness_width[1];
+       
+           D=(d1^2+d2^2)^0.5;
+           w=exp(-D^2/2);
+           ind.fitnessScaling=w*K/N;
+       }
+   }
+}
+
+// Write temporal patterns
+1:late(){
+    lines=NULL;
+    if(sim.cycle%100==0){ // Write every 100 generations
+        for(i in 0:(npop-1)){
+            N=sim.subpopulations[i].individualCount;
+            if(N>0){
+                inds=sim.subpopulations[i].individuals;
+                z_pop_mean=c(mean(inds.getValue("z1")),mean(inds.getValue("z2")));
+                vg=c(var(inds.getValue("z1")),var(inds.getValue("z2")));
+            }else{
+                z_pop_mean=rep(-1,2);
+                vg=rep(-1,2);
+            }
+            for(j in 1:2){
+                outLine=paste0(sim.cycle,"\t",i+1,"\t",j,"\t",N,"\t",z_pop_mean[j-1],"\t",vg[j-1],"\n");
+                lines=c(lines,outLine);
+            }
+        }
+        file=paste0(lines);
+        cat(file);
+    }
+}
+
+time late(){
+    sim.simulationFinished();
+    lines=NULL;
+    for(n in 0:(npop-1)){
+        N=sim.subpopulations[n].individualCount;
+        //catn(N);
+        if(N>0){
+            inds=sim.subpopulations[n].individuals;
+            z_pop_mean=c(mean(inds.getValue("z1")),mean(inds.getValue("z2")));
+            vg=c(var(inds.getValue("z1")),var(inds.getValue("z2")));
+        }else{
+            z_pop_mean=rep(-1,2);
+            vg=rep(-1,2);
+        }
+        for(i in 1:2){
+            outLine=paste0(n+1,"\t",i,"\t",N,"\t",z_pop_mean[i-1],"\t",vg[i-1],"\n");
+            lines=c(lines,outLine);
+        }
+    }
+    file=paste0(lines);
+    //cat(file);
+    filename=paste0("/Users/rexjiang/Desktop/M_matrix/SLiM_rerun/dir_nwf/sim_dir_nwf_out_end_2t_",L_upl,"pl.txt");
+    writeFile(filename,file);
+}
