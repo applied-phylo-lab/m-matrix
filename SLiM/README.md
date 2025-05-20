@@ -23,7 +23,7 @@ SLiM code for simulating 5 traits.
 # 10_traits.txt
 SLiM code for simulating 10 traits.
 
-# sim_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt
+# sim_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt or sim_qn_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt or  sim_dir_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt or sim_dir_nwf_out_end_<number_of_traits>t_<number_of_pleiotropic_loci>.txt
 Data files containing output at the end of the simulations.
 
 # sim_out_all_<number_of_traits>t_<number_of_pleiotropic_loci>.txt
